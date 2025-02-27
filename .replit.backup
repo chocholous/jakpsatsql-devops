@@ -1,0 +1,3 @@
+language = "python3"
+#run = "python init_db_revert.py"
+run = "python init_db.py"
