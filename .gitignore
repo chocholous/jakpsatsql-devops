@@ -1,6 +1,7 @@
 .env
 rsa_key.p8
 rsa_key.pub
+provisioner_key.pub
 provisioner_key_plain.p8
 venv/
 .venv/
