@@ -1,0 +1,13 @@
+Czechitas Provisioner — instrukce
+
+1. Zkopiruj soubory do jedne slozky:
+   - run.command (Mac) nebo run.bat (Windows)
+   - provision-macos (Mac) nebo provision.exe (Windows)
+   - provisioner_key.p8
+   - ucastnice.tsv (seznam studentek)
+
+2. Dvojklik na run.command / run.bat
+3. Zadej passphrase (dostanes ho od admina)
+4. Zkontroluj tabulku -> potvrد nebo odrus
+
+Mac: pokud se nezobrazí dialog, klikni pravým -> Otevrit
