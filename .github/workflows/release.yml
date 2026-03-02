@@ -1,0 +1,135 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            binary_name: provision-macos
+            artifact: provision-macos
+          - os: windows-latest
+            binary_name: provision
+            artifact: provision.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Build binary (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          uv run pyinstaller --onefile \
+            --name ${{ matrix.binary_name }} \
+            --hidden-import snowflake.connector \
+            --hidden-import cryptography \
+            --hidden-import cffi \
+            --hidden-import _cffi_backend \
+            provision.py
+
+      - name: Build binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          uv run pyinstaller --onefile `
+            --name ${{ matrix.binary_name }} `
+            --hidden-import snowflake.connector `
+            --hidden-import cryptography `
+            --hidden-import cffi `
+            --hidden-import _cffi_backend `
+            provision.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download macOS binary
+        uses: actions/download-artifact@v4
+        with:
+          name: provision-macos
+          path: dist/
+
+      - name: Download Windows binary
+        uses: actions/download-artifact@v4
+        with:
+          name: provision.exe
+          path: dist/
+
+      - name: Make macOS binary executable
+        run: chmod +x dist/provision-macos
+
+      - name: Create release archive (macOS)
+        run: |
+          mkdir -p release/macos
+          cp dist/provision-macos release/macos/
+          cp run.command release/macos/
+          chmod +x release/macos/run.command
+          cp provisioner_key.p8 release/macos/
+          cp SPUSTENI.txt release/macos/
+          echo "# Sem vlož ucastnice.tsv" > release/macos/ucastnice.tsv.SAMPLE
+          cd release && zip -r ../czechitas-provisioner-macos-${{ github.ref_name }}.zip macos/
+
+      - name: Create release archive (Windows)
+        run: |
+          mkdir -p release/windows
+          cp dist/provision.exe release/windows/
+          cp run.bat release/windows/
+          cp provisioner_key.p8 release/windows/
+          cp SPUSTENI.txt release/windows/
+          echo "# Sem vlož ucastnice.tsv" > release/windows/ucastnice.tsv.SAMPLE
+          cd release && zip -r ../czechitas-provisioner-windows-${{ github.ref_name }}.zip windows/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Czechitas Provisioner ${{ github.ref_name }}"
+          body: |
+            ## Czechitas Provisioner ${{ github.ref_name }}
+
+            ### Instalace pro operátora
+
+            1. Stáhni ZIP pro svůj systém
+            2. Rozbal do libovolné složky
+            3. Přidej `ucastnice.tsv` (seznam studentek)
+            4. Spusť `run.command` (Mac) nebo `run.bat` (Windows)
+            5. Zadej passphrase (dostaneš ho od admina)
+
+            ### Soubory v balíčku
+            | Soubor | Popis |
+            |--------|-------|
+            | `provision-macos` / `provision.exe` | Standalone binárka |
+            | `run.command` / `run.bat` | Spouštěcí skript (dvojklik) |
+            | `provisioner_key.p8` | Zašifrovaný RSA klíč |
+            | `SPUSTENI.txt` | Instrukce |
+
+            > **Passphrase** k soukromému klíči dostaneš od admina zvlášť (ne v tomto balíčku).
+          files: |
+            czechitas-provisioner-macos-${{ github.ref_name }}.zip
+            czechitas-provisioner-windows-${{ github.ref_name }}.zip
+          draft: false
+          prerelease: false
