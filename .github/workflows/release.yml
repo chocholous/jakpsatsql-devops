@@ -91,7 +91,7 @@ jobs:
           chmod +x release/macos/run.command
           cp provisioner_key.p8 release/macos/
           cp SPUSTENI.txt release/macos/
-          echo "# Sem vlož ucastnice.tsv" > release/macos/ucastnice.tsv.SAMPLE
+          cp ucastnice_vzor.tsv release/macos/
           cd release && zip -r ../czechitas-provisioner-macos-${{ github.ref_name }}.zip macos/
 
       - name: Create release archive (Windows)
@@ -101,7 +101,7 @@ jobs:
           cp run.bat release/windows/
           cp provisioner_key.p8 release/windows/
           cp SPUSTENI.txt release/windows/
-          echo "# Sem vlož ucastnice.tsv" > release/windows/ucastnice.tsv.SAMPLE
+          cp ucastnice_vzor.tsv release/windows/
           cd release && zip -r ../czechitas-provisioner-windows-${{ github.ref_name }}.zip windows/
 
       - name: Create GitHub Release
@@ -111,23 +111,32 @@ jobs:
           body: |
             ## Czechitas Provisioner ${{ github.ref_name }}
 
-            ### Instalace pro operátora
+            ### Jak začít
 
-            1. Stáhni ZIP pro svůj systém
+            1. Stáhni ZIP pro svůj systém ⬇️
             2. Rozbal do libovolné složky
-            3. Přidej `ucastnice.tsv` (seznam studentek)
-            4. Spusť `run.command` (Mac) nebo `run.bat` (Windows)
-            5. Zadej passphrase (dostaneš ho od admina)
+            3. Nahraď `ucastnice_vzor.tsv` svým skutečným seznamem studentek (nebo ho přejmenuj a doplň)
+            4. Spusť `run.command` (Mac) nebo `run.bat` (Windows) — dvojklik
+            5. Zadej passphrase od admina
+            6. Zkontroluj tabulku a potvrď
 
             ### Soubory v balíčku
             | Soubor | Popis |
             |--------|-------|
-            | `provision-macos` / `provision.exe` | Standalone binárka |
-            | `run.command` / `run.bat` | Spouštěcí skript (dvojklik) |
+            | `provision-macos` / `provision.exe` | Standalone binárka (nevyžaduje Python) |
+            | `run.command` / `run.bat` | Spouštěcí skript — dvojklik |
             | `provisioner_key.p8` | Zašifrovaný RSA klíč |
-            | `SPUSTENI.txt` | Instrukce |
+            | `ucastnice_vzor.tsv` | Vzorový soubor — nahraď svými daty |
+            | `SPUSTENI.txt` | Podrobné instrukce včetně formátu TSV |
 
             > **Passphrase** k soukromému klíči dostaneš od admina zvlášť (ne v tomto balíčku).
+
+            ### Formát TSV souboru
+            ```
+            ČÍSLO	JMÉNO 	PŘÍJMENÍ	e-mail	❄️ login ❄️	❄️ heslo ❄️
+            1	Jana	Nováková	jana@gmail.com	CZECHITA_NOVAKOVA	SpANEKSePrECENUJE
+            ```
+            Login musí obsahovat podtržítko: `SKUPINA_PRIJMENI`
           files: |
             czechitas-provisioner-macos-${{ github.ref_name }}.zip
             czechitas-provisioner-windows-${{ github.ref_name }}.zip

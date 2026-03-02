@@ -1,13 +1,51 @@
-Czechitas Provisioner — instrukce
+Czechitas Provisioner — instrukce pro operátora
+================================================
 
-1. Zkopiruj soubory do jedne slozky:
-   - run.command (Mac) nebo run.bat (Windows)
-   - provision-macos (Mac) nebo provision.exe (Windows)
-   - provisioner_key.p8
-   - ucastnice.tsv (seznam studentek)
+CO DOSTANEŠ OD ADMINA
+----------------------
+  - provisioner_key.p8  (soukromý klíč — nepřeposílej)
+  - passphrase          (heslo ke klíči — sdílí se zvlášť, např. telefonem)
 
-2. Dvojklik na run.command / run.bat
-3. Zadej passphrase (dostanes ho od admina)
-4. Zkontroluj tabulku -> potvrد nebo odrus
+CO PŘIPRAVÍŠ SAMA
+-----------------
+  - ucastnice.tsv       (seznam studentek — viz vzor níže nebo soubor ucastnice_vzor.tsv)
 
-Mac: pokud se nezobrazí dialog, klikni pravým -> Otevrit
+FORMÁT SOUBORU ucastnice.tsv
+-----------------------------
+  Soubor musí být uložen jako TSV (tabulátor jako oddělovač), kódování UTF-8.
+  Pokud vytváříš v Excelu: Soubor → Uložit jako → Text (oddělený tabulátory) .txt
+  Pak přejmenuj příponu na .tsv.
+
+  Povinné sloupce (přesně takto pojmenované):
+    ČÍSLO   JMÉNO   PŘÍJMENÍ   e-mail   ❄️ login ❄️   ❄️ heslo ❄️
+
+  Příklad řádku:
+    1   Jana   Nováková   jana@gmail.com   CZECHITA_NOVAKOVA   SpANEKSePrECENUJE
+
+  Pravidla pro login (sloupec ❄️ login ❄️):
+    - Musí obsahovat podtržítko: SKUPINA_JMENO  (např. CZECHITA_NOVAKOVA)
+    - Pouze velká písmena a podtržítka, žádné háčky ani čárky
+    - Každý login musí být jedinečný
+
+JAK SPUSTIT
+-----------
+  1. Zkopíruj do jedné složky:
+       Mac:     provision-macos + run.command + provisioner_key.p8 + ucastnice.tsv
+       Windows: provision.exe   + run.bat     + provisioner_key.p8 + ucastnice.tsv
+
+  2. Dvojklik na run.command (Mac) nebo run.bat (Windows)
+
+  3. Zadej passphrase, kterou ti dal admin
+
+  4. Zkontroluj tabulku se jmény — zelená = nová studentka, šedá = už existuje
+
+  5. Potvrď "y" pro spuštění nebo Enter/N pro zrušení
+
+  Mac: pokud se po dvojkliku nic nestane → klikni pravým tlačítkem → Otevřít
+
+ČASTÉ CHYBY
+-----------
+  "Chybí sloupce"       → zkontroluj názvy sloupců v TSV, musí být přesně jak výše
+  "login neobsahuje _"  → login musí mít podtržítko, např. CZECHITA_NOVAKOVA
+  "Soubor nenalezen"    → ujisti se, že ucastnice.tsv je ve stejné složce jako run.command
+  Passphrase odmítnuta  → zkontroluj, zda zadáváš správnou passphrase od admina
