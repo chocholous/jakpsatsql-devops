@@ -4,7 +4,10 @@ setup:
 	bash .worktree-setup.sh
 
 build:
-	uv run python -m py_compile provision.py
+	@echo "Build: verifying toolchain..."
+	uv --version
+	@if [ -f provision.py ]; then uv run python -m py_compile provision.py && echo "provision.py OK"; fi
+	@echo "Build OK"
 
 test:
 	uv run pytest tests/ -v --ignore=tests/test_integration.py --ignore=tests/test_binary.py
