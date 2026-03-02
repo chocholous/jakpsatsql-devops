@@ -26,8 +26,9 @@ fi
 # Auto-detect TSV (prvni *.tsv v adresari)
 TSV=$(ls *.tsv 2>/dev/null | head -1)
 if [ -z "$TSV" ]; then
-  osascript -e 'display alert "Nenalezen zadny .tsv soubor v teto slozce." as critical' 2>/dev/null || true
   echo "Chyba: nenalezen zadny .tsv soubor v teto slozce." >&2
+  # Show macOS alert in background so it doesn't block (headless/CI safe)
+  osascript -e 'display alert "Nenalezen zadny .tsv soubor v teto slozce." as critical' 2>/dev/null &
   exit 1
 fi
 
