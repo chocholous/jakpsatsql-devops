@@ -133,7 +133,7 @@ def test_plan_operations_existing_objects():
     students = _make_students()
     existing = {
         "users": {"CZECHITA_STUDENTKAS"},
-        "roles": {"ROLE_CZECHITA_STUDENTKAS", "ROLE_CZECHITA"},
+        "roles": {"ROLE_CZECHITA_STUDENTKAS", "ROLE_CZECHITA", "ROLE_CZECHITA_KOUC"},
         "schemas": {"SCH_CZECHITA_STUDENTKAS", "SCH_CZECHITA", "SCH_CZECHITA_HRISTE"},
     }
     ops = plan_operations(students, existing, "COURSES")

@@ -1,9 +1,12 @@
 """provision.py — Czechitas Snowflake provisioning skript.
 
 Distributable script that provisions student users, roles and schemas in Snowflake.
+Also supports coach/lektor provisioning (--kouc mode).
 Uses RSA key-pair (JWT) authentication — no SADMIN credentials needed.
 
-Usage: python provision.py <tsv_file> [--key <key_path>]
+Usage:
+  python provision.py <tsv_file> [--key <key_path>]
+  python provision.py <tsv_file> --kouc --node <NODE> [--key <key_path>]
 """
 
 import csv
@@ -76,11 +79,12 @@ TEROR_TABLE_DDL = (
 # ---------------------------------------------------------------------------
 # validate_tsv — MUST be called BEFORE load_private_key (fail-fast)
 # ---------------------------------------------------------------------------
-def validate_tsv(path: str) -> list[str]:
+def validate_tsv(path: str, *, kouc_mode: bool = False) -> list[str]:
     """Fail-fast validation before connecting to Snowflake.
 
     Returns a list of error messages (empty list = OK).
     Called before key loading to avoid passphrase prompt on bad input.
+    In kouc_mode, login doesn't need '_' (no node_username split).
     """
     errors: list[str] = []
     required_cols = {"ČÍSLO", "JMÉNO", "PŘÍJMENÍ", "e-mail", "❄️ login ❄️", "❄️ heslo ❄️"}
@@ -96,8 +100,10 @@ def validate_tsv(path: str) -> list[str]:
             for i, row in enumerate(reader, 2):
                 login = row.get("❄️ login ❄️", "").strip()
                 email = row.get("e-mail", "").strip()
-                if "_" not in login:
+                if not kouc_mode and "_" not in login:
                     errors.append(f"Řádek {i}: login '{login}' neobsahuje '_'")
+                if not login:
+                    errors.append(f"Řádek {i}: prázdný login")
                 if "@" not in email:
                     errors.append(f"Řádek {i}: email '{email}' nemá '@'")
                 logins.append(login)
@@ -204,6 +210,121 @@ def load_students(tsv_file: str) -> list[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
+# load_coaches — načte TSV pro kouče/lektory (bez split loginu)
+# ---------------------------------------------------------------------------
+def load_coaches(tsv_file: str) -> list[dict[str, Any]]:
+    """Load coaches/lektors from TSV file.
+
+    Unlike load_students, does NOT split login — coaches don't belong to a node
+    via their login name. Node is specified via --node argument.
+    Returns list of dicts with keys: login, email, password, name.
+    """
+    coaches = []
+    with open(tsv_file, encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            login = row.get("❄️ login ❄️", "").strip()
+            email = row.get("e-mail", "").strip()
+            password = row.get("❄️ heslo ❄️", "").strip()
+            jmeno = row.get("JMÉNO", "").strip()
+            prijmeni = row.get("PŘÍJMENÍ", "").strip()
+            name = f"{jmeno} {prijmeni}".strip()
+            coaches.append(
+                {
+                    "login": login,
+                    "email": email,
+                    "password": password,
+                    "name": name,
+                }
+            )
+    return coaches
+
+
+# ---------------------------------------------------------------------------
+# plan_coach_operations — SQL operace pro kouče/lektory
+# ---------------------------------------------------------------------------
+def plan_coach_operations(
+    coaches: list[dict[str, Any]],
+    node: str,
+    existing: dict[str, set[str]],
+    dbname: str,
+) -> list[dict[str, Any]]:
+    """Build SQL operations for coach/lektor provisioning.
+
+    Coaches get:
+      - User account with PASSWORD and MUST_CHANGE_PASSWORD
+      - ROLE_{NODE}_KOUC (full access to node schemas)
+    No personal schemas or roles are created.
+    """
+    ops: list[dict[str, Any]] = []
+    coach_role = f"ROLE_{node}_KOUC"
+    node_schema = f"SCH_{node}"
+    default_ns = f"{dbname}.{node_schema}"
+
+    for coach in coaches:
+        login = coach["login"]
+        email = coach["email"]
+        password = coach["password"]
+
+        ops.append(
+            {
+                "sql": (
+                    f"CREATE USER IF NOT EXISTS {login}"
+                    f" PASSWORD = '{password}'"
+                    f" EMAIL = '{email}'"
+                    f" MUST_CHANGE_PASSWORD = TRUE"
+                    f" DEFAULT_WAREHOUSE = '{SF_WAREHOUSE}'"
+                    f" DEFAULT_NAMESPACE = '{default_ns}'"
+                    f" DEFAULT_ROLE = '{coach_role}'"
+                ),
+                "desc": f"Create user {login}",
+                "new": login not in existing["users"],
+            }
+        )
+        ops.append(
+            {
+                "sql": f"GRANT ROLE {coach_role} TO USER {login}",
+                "desc": f"Grant {coach_role} to {login}",
+                "new": None,
+            }
+        )
+
+    return ops
+
+
+# ---------------------------------------------------------------------------
+# build_coach_preview_table — rich.Table pro kouče/lektory
+# ---------------------------------------------------------------------------
+def build_coach_preview_table(
+    coaches: list[dict[str, Any]],
+    node: str,
+    existing: dict[str, set[str]],
+) -> Table:
+    """Build a Rich table showing planned coach/lektor provisioning."""
+    coach_role = f"ROLE_{node}_KOUC"
+    table = Table(
+        title=f"Plán provisioningu koučů/lektorů → {coach_role}",
+        show_header=True,
+        header_style="bold cyan",
+    )
+    table.add_column("JMÉNO", style="bold")
+    table.add_column("LOGIN")
+    table.add_column("USER")
+
+    def status(exists: bool) -> str:
+        return "[dim]OK[/dim]" if exists else "[green]NOVY[/green]"
+
+    for coach in coaches:
+        table.add_row(
+            coach["name"] or coach["login"],
+            coach["login"],
+            status(coach["login"] in existing["users"]),
+        )
+
+    return table
+
+
+# ---------------------------------------------------------------------------
 # fetch_existing — SHOW USERS, SHOW ROLES, SHOW SCHEMAS
 # ---------------------------------------------------------------------------
 def fetch_existing(cur, dbname: str) -> dict[str, set[str]]:
@@ -279,6 +400,23 @@ def plan_operations(
             }
         )
 
+        # Node-level coach role (enables password reset via OWNERSHIP)
+        coach_role = f"ROLE_{node_name}_KOUC"
+        ops.append(
+            {
+                "sql": f"CREATE ROLE IF NOT EXISTS {coach_role}",
+                "desc": f"Create role {coach_role}",
+                "new": coach_role not in existing["roles"],
+            }
+        )
+        ops.append(
+            {
+                "sql": f"GRANT ROLE {coach_role} TO ROLE {SF_ROLE}",
+                "desc": f"Grant {coach_role} to {SF_ROLE} (provisioner access)",
+                "new": None,
+            }
+        )
+
         # Node-level playground schema
         node_hriste = f"SCH_{node_name}_HRISTE"
         ops.append(
@@ -338,6 +476,20 @@ def plan_operations(
             {
                 "sql": f"GRANT USAGE ON SCHEMA {dbname}.{node_hriste} TO ROLE {node_role}",
                 "desc": f"Grant schema usage to {node_role} (hriste)",
+                "new": None,
+            }
+        )
+        ops.append(
+            {
+                "sql": f"GRANT SELECT ON ALL TABLES IN SCHEMA {dbname}.{node_hriste} TO ROLE {node_role}",
+                "desc": f"Grant select on {node_hriste} tables to {node_role}",
+                "new": None,
+            }
+        )
+        ops.append(
+            {
+                "sql": f"GRANT SELECT ON FUTURE TABLES IN SCHEMA {dbname}.{node_hriste} TO ROLE {node_role}",
+                "desc": f"Grant select on future {node_hriste} tables to {node_role}",
                 "new": None,
             }
         )
@@ -419,6 +571,38 @@ def plan_operations(
                 {
                     "sql": f"GRANT ROLE {user_role} TO USER {login}",
                     "desc": f"Grant role to user {login}",
+                    "new": None,
+                }
+            )
+
+            # Coach access to student schema
+            ops.append(
+                {
+                    "sql": f"GRANT ALL ON SCHEMA {dbname}.{user_schema} TO ROLE {coach_role}",
+                    "desc": f"Grant schema {user_schema} to {coach_role}",
+                    "new": None,
+                }
+            )
+            ops.append(
+                {
+                    "sql": f"GRANT ALL ON ALL TABLES IN SCHEMA {dbname}.{user_schema} TO ROLE {coach_role}",
+                    "desc": f"Grant tables in {user_schema} to {coach_role}",
+                    "new": None,
+                }
+            )
+            ops.append(
+                {
+                    "sql": f"GRANT ALL ON FUTURE TABLES IN SCHEMA {dbname}.{user_schema} TO ROLE {coach_role}",
+                    "desc": f"Grant future tables in {user_schema} to {coach_role}",
+                    "new": None,
+                }
+            )
+
+            # Coach ownership of student user (enables password reset)
+            ops.append(
+                {
+                    "sql": f"GRANT OWNERSHIP ON USER {login} TO ROLE {coach_role} COPY CURRENT GRANTS",
+                    "desc": f"Transfer ownership of {login} to {coach_role}",
                     "new": None,
                 }
             )
@@ -508,21 +692,33 @@ def main() -> None:
     args = sys.argv[1:]
 
     if not args or args[0] in ("-h", "--help"):
+        console.print("[bold]Použití:[/bold]")
+        console.print("  python provision.py <tsv_soubor> [--key <cesta>]")
         console.print(
-            "[bold]Použití:[/bold] python provision.py <tsv_soubor> [--key <cesta_ke_klici>]"
+            "  python provision.py <tsv_soubor> --kouc --node <NODE> [--key <cesta>]"
         )
         console.print()
         console.print(
-            "  [cyan]tsv_soubor[/cyan]   Soubor s přihlašovacími údaji studentek"
+            "  [cyan]tsv_soubor[/cyan]   TSV s údaji (studentky nebo koučové/lektoři)"
+        )
+        console.print(
+            "  [cyan]--kouc[/cyan]        Režim koučů/lektorů (jen user + ROLE_{NODE}_KOUC)"
+        )
+        console.print(
+            "  [cyan]--node[/cyan]        Cílový node (povinné s --kouc, např. CZECHITA)"
         )
         console.print(
             f"  [cyan]--key[/cyan]         Cesta k RSA klíči (výchozí: {DEFAULT_KEY})"
         )
+        console.print("  [cyan]--dry-run[/cyan]     Zobrazí SQL bez provedení")
         console.print()
-        console.print("Příklad: python provision.py ucastnice.tsv")
+        console.print("Příklady:")
+        console.print("  python provision.py ucastnice.tsv")
+        console.print("  python provision.py ucastnice.tsv --dry-run")
+        console.print("  python provision.py kouci.tsv --kouc --node CZECHITA")
         sys.exit(1)
 
-    # Extract tsv_file from args
+    # Extract tsv_file from args (first non-flag argument)
     tsv_file = args[0]
 
     # Extract --key option
@@ -535,8 +731,31 @@ def main() -> None:
             console.print("[red]Chyba:[/red] --key vyžaduje cestu ke klíči")
             sys.exit(1)
 
+    # Extract --yes option (skip interactive confirmation)
+    auto_confirm = "--yes" in args
+
+    # Extract --dry-run option
+    dry_run = "--dry-run" in args
+
+    # Extract --kouc and --node options
+    kouc_mode = "--kouc" in args
+    node_name = None
+    if "--node" in args:
+        idx = args.index("--node")
+        if idx + 1 < len(args):
+            node_name = args[idx + 1].upper()
+        else:
+            console.print(
+                "[red]Chyba:[/red] --node vyžaduje název node (např. CZECHITA)"
+            )
+            sys.exit(1)
+
+    if kouc_mode and not node_name:
+        console.print("[red]Chyba:[/red] --kouc vyžaduje --node <NODE>")
+        sys.exit(1)
+
     # GATE 1: Validate TSV BEFORE loading the key (fail-fast, no passphrase prompt)
-    errors = validate_tsv(tsv_file)
+    errors = validate_tsv(tsv_file, kouc_mode=kouc_mode)
     if errors:
         console.print("[red bold]Validační chyby v TSV:[/red bold]")
         for err in errors:
@@ -558,37 +777,64 @@ def main() -> None:
         sys.exit(1)
 
     cur = con.cursor()
+    existing = fetch_existing(cur, SF_DATABASE)
 
     # GATE 4: Load data and plan operations
-    students = load_students(tsv_file)
-    existing = fetch_existing(cur, SF_DATABASE)
-    ops = plan_operations(students, existing, SF_DATABASE)
+    if kouc_mode:
+        coaches = load_coaches(tsv_file)
+        ops = plan_coach_operations(coaches, node_name, existing, SF_DATABASE)
+        table = build_coach_preview_table(coaches, node_name, existing)
+    else:
+        students = load_students(tsv_file)
+        ops = plan_operations(students, existing, SF_DATABASE)
+        table = build_preview_table(students, existing)
 
     # GATE 5: Preview
-    table = build_preview_table(students, existing)
     console.print(table)
 
     # Summary
+    new_ops = [o for o in ops if o["new"] is not False]
     new_users = sum(
         1 for o in ops if o.get("new") is True and "CREATE USER" in o["sql"]
     )
-    new_roles = sum(
-        1 for o in ops if o.get("new") is True and "CREATE ROLE" in o["sql"]
-    )
-    new_schemas = sum(
-        1 for o in ops if o.get("new") is True and "CREATE SCHEMA" in o["sql"]
-    )
-    console.print(
-        f"\n[bold]Plán:[/bold] {new_users} nových uživatelů, "
-        f"{new_roles} nových rolí, {new_schemas} nových schémat"
-    )
+    if kouc_mode:
+        console.print(
+            f"\n[bold]Plán:[/bold] {new_users} nových koučů/lektorů → ROLE_{node_name}_KOUC"
+        )
+    else:
+        new_roles = sum(
+            1 for o in ops if o.get("new") is True and "CREATE ROLE" in o["sql"]
+        )
+        new_schemas = sum(
+            1 for o in ops if o.get("new") is True and "CREATE SCHEMA" in o["sql"]
+        )
+        console.print(
+            f"\n[bold]Plán:[/bold] {new_users} nových uživatelů, "
+            f"{new_roles} nových rolí, {new_schemas} nových schémat"
+        )
+
+    # Dry run — print SQL and exit
+    if dry_run:
+        console.print(
+            f"\n[bold yellow]DRY RUN — {len(new_ops)} SQL příkazů:[/bold yellow]\n"
+        )
+        for o in new_ops:
+            console.print(f"  [dim]{o['desc']}[/dim]")
+            console.print(f"    {o['sql']};")
+        console.print("\n[dim]Žádné změny nebyly provedeny.[/dim]")
+        cur.close()
+        con.close()
+        sys.exit(0)
 
     # Confirmation
-    console.print()
-    answer = console.input("[bold]Provést? [y/N]:[/bold] ").strip().lower()
-    if answer != "y":
-        console.print("[dim]Zrušeno.[/dim]")
-        sys.exit(0)
+    if auto_confirm:
+        console.print("\n[bold]--yes: automatické potvrzení[/bold]")
+    else:
+        console.print()
+        answer = console.input("[bold]Provést? [y/N]:[/bold] ").strip().lower()
+        if answer != "y":
+            console.print("[dim]Zrušeno.[/dim]")
+            sys.exit(0)
 
     # Execute
     exec_errors = execute_with_progress(cur, con, ops)
