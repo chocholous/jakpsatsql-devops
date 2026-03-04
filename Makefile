@@ -7,6 +7,7 @@ build:
 	@echo "Build: verifying toolchain..."
 	uv --version
 	@if [ -f provision.py ]; then uv run python -m py_compile provision.py && echo "provision.py OK"; fi
+	@if [ -f provision_gui.py ]; then uv run python -m py_compile provision_gui.py && echo "provision_gui.py OK"; fi
 	@echo "Build OK"
 
 test:

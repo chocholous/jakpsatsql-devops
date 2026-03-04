@@ -12,6 +12,9 @@ CO POTŘEBUJEŠ
   3. Od admina dostaneš passphrase (heslo ke klíči) — sdílí se zvlášť,
      např. telefonem nebo přes zabezpečenou zprávu
 
+     ZIP obsahuje soubor provisioner_key.p8 (šifrovaný RSA klíč).
+     Tento soubor sám o sobě neobsahuje citlivé informace bez passphrase.
+
   4. Připrav si TSV soubor se seznamem studentek (viz formát níže)
      a vlož ho do stejné složky
 
@@ -32,7 +35,15 @@ FORMÁT SOUBORU (TSV)
     - Pouze velká písmena a podtržítka, žádné háčky ani čárky
     - Každý login musí být jedinečný
 
-PROVISIONING STUDENTEK (dvojklik)
+PROVISIONING STUDENTEK — GUI (grafické rozhraní)
+-------------------------------------------------
+  1. Dvojklik na CzechitasProvisioner (Mac: CzechitasProvisioner.app, Windows: CzechitasProvisioner.exe)
+  2. Klikni "Vyber TSV soubor" a vyber svůj .tsv soubor
+  3. Zadej passphrase ke klíči (provisioner_key.p8) do pole "Passphrase ke klíči:"
+  4. Klikni "Náhled (dry-run)" pro zobrazení plánovaných změn
+  5. Klikni "Provést" pro spuštění provisioningu
+
+PROVISIONING STUDENTEK (příkazová řádka / dvojklik)
 -----------------------------------
   1. Vlož svůj .tsv soubor do rozbalené složky
   2. Dvojklik na run.command (Mac) nebo run.bat (Windows)
