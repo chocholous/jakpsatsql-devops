@@ -14,14 +14,31 @@ Snowflake user provisioning tool for [Czechitas](https://www.czechitas.cz/) SQL 
 ### Students
 
 ```bash
+# Preview what will happen (no changes made)
+./provision-macos ucastnice.tsv --dry-run
+
+# Provision students
 ./provision-macos ucastnice.tsv
+
+# Provision without interactive prompt (e.g. in CI)
+./provision-macos ucastnice.tsv --yes
 ```
 
 ### Coaches / Lektors
 
 ```bash
+# Preview coach provisioning
+./provision-macos kouci.tsv --kouc --node CZECHITA --dry-run
+
+# Provision coaches for node CZECHITA
 ./provision-macos kouci.tsv --kouc --node CZECHITA
 ```
+
+### Re-provisioning
+
+Running the tool again on the same TSV is safe — existing objects are skipped (`IF NOT EXISTS`), grants are re-applied idempotently. Use this when:
+- New students or coaches are added to the TSV
+- You need to re-apply grants after manual changes
 
 ### Options
 
@@ -62,9 +79,20 @@ Tab-separated, UTF-8 encoded. Required columns:
 
 Coaches and lektors with `ROLE_{NODE}_KOUC` can reset student passwords directly in Snowsight UI (Admin → Users & Roles → select user → Reset Password). This works because student user ownership is transferred to the coach role during provisioning.
 
-## Authentication
+## Authentication & Passphrase
 
-The provisioner uses RSA key-pair (JWT) authentication — no Snowflake password needed. The encrypted private key (`provisioner_key.p8`) is included in the release bundle. The passphrase is shared separately by the admin.
+The provisioner uses RSA key-pair (JWT) authentication — no Snowflake password needed.
+
+The release bundle includes `provisioner_key.p8` — an AES-256 encrypted RSA private key. To use it, you need a **passphrase**:
+
+1. **Get the passphrase from the admin** — it is shared separately (e.g. via phone or secure message), never included in the bundle
+2. **On Mac**: `run.command` opens a native dialog asking for it
+3. **On Windows**: `run.bat` prompts in the terminal
+4. **For scripting/CI**: set the `SF_KEY_PASSPHRASE` environment variable:
+   ```bash
+   export SF_KEY_PASSPHRASE='your-passphrase-here'
+   ./provision-macos ucastnice.tsv --yes
+   ```
 
 ## Development
 
