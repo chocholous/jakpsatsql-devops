@@ -1,17 +1,22 @@
 Czechitas Provisioner — instrukce pro operátora
 ================================================
 
-CO DOSTANEŠ OD ADMINA
-----------------------
-  - provisioner_key.p8  (soukromý klíč — nepřeposílej)
-  - passphrase          (heslo ke klíči — sdílí se zvlášť, např. telefonem)
+CO POTŘEBUJEŠ
+--------------
+  1. Stáhni poslední verzi:
+     https://github.com/chocholous/jakpsatsql-devops/releases/latest
+     → stáhni ZIP pro svůj systém (Mac nebo Windows)
 
-CO PŘIPRAVÍŠ SAMA
------------------
-  - ucastnice.tsv       (seznam studentek — viz vzor níže nebo soubor ucastnice_vzor.tsv)
+  2. Rozbal ZIP do libovolné složky
 
-FORMÁT SOUBORU ucastnice.tsv
------------------------------
+  3. Od admina dostaneš passphrase (heslo ke klíči) — sdílí se zvlášť,
+     např. telefonem nebo přes zabezpečenou zprávu
+
+  4. Připrav si TSV soubor se seznamem studentek (viz formát níže)
+     a vlož ho do stejné složky
+
+FORMÁT SOUBORU (TSV)
+---------------------
   Soubor musí být uložen jako TSV (tabulátor jako oddělovač), kódování UTF-8.
   Pokud vytváříš v Excelu: Soubor → Uložit jako → Text (oddělený tabulátory) .txt
   Pak přejmenuj příponu na .tsv.
@@ -27,25 +32,59 @@ FORMÁT SOUBORU ucastnice.tsv
     - Pouze velká písmena a podtržítka, žádné háčky ani čárky
     - Každý login musí být jedinečný
 
-JAK SPUSTIT
------------
-  1. Zkopíruj do jedné složky:
-       Mac:     provision-macos + run.command + provisioner_key.p8 + ucastnice.tsv
-       Windows: provision.exe   + run.bat     + provisioner_key.p8 + ucastnice.tsv
-
+PROVISIONING STUDENTEK (dvojklik)
+-----------------------------------
+  1. Vlož svůj .tsv soubor do rozbalené složky
   2. Dvojklik na run.command (Mac) nebo run.bat (Windows)
+  3. Zadej passphrase
+  4. Zkontroluj tabulku — zelená = nová studentka, šedá = už existuje
+  5. Potvrď "y" pro spuštění nebo "n" pro zrušení
 
-  3. Zadej passphrase, kterou ti dal admin
+  Opakované spuštění je bezpečné — existující studentky se přeskočí.
 
-  4. Zkontroluj tabulku se jmény — zelená = nová studentka, šedá = už existuje
+PROVISIONING KOUČŮ A LEKTORŮ (terminál)
+-----------------------------------------
+  Koučové a lektoři se provisionují z terminálu:
 
-  5. Potvrď "y" pro spuštění nebo Enter/N pro zrušení
+  Mac:
+    ./provision-macos kouci.tsv --kouc --node CZECHITA
 
-  Mac: pokud se po dvojkliku nic nestane → klikni pravým tlačítkem → Otevřít
+  Windows (PowerShell):
+    .\provision.exe kouci.tsv --kouc --node CZECHITA
+
+  Formát TSV je stejný, ale loginy koučů nemusí obsahovat podtržítko.
+
+RESET HESLA STUDENTKY (pro kouče a lektory)
+---------------------------------------------
+  Koučové a lektoři mohou sami resetovat hesla studentek ve Snowflake:
+
+  1. Přihlásit se do Snowsight (https://app.snowflake.com/)
+  2. Přepnout roli na ROLE_CZECHITA_KOUC (vlevo dole)
+  3. Admin → Users & Roles → kliknout na studentku → Reset Password
+
+NÁHLED BEZ PROVEDENÍ ZMĚN
+---------------------------
+  Přidej --dry-run pro zobrazení plánovaných SQL bez provedení:
+
+  Mac:
+    ./provision-macos ucastnice.tsv --dry-run
+
+  Windows:
+    .\provision.exe ucastnice.tsv --dry-run
+
+MAC — BEZPEČNOSTNÍ VAROVÁNÍ
+-----------------------------
+  macOS může zablokovat staženou binárku hláškou
+  "Apple could not verify".
+
+  Řešení: otevři Terminál ve složce a spusť:
+    xattr -dr com.apple.quarantine provision-macos run.command
+
+  Nebo: Nastavení systému → Soukromí a zabezpečení → Přesto otevřít
 
 ČASTÉ CHYBY
 -----------
   "Chybí sloupce"       → zkontroluj názvy sloupců v TSV, musí být přesně jak výše
   "login neobsahuje _"  → login musí mít podtržítko, např. CZECHITA_NOVAKOVA
-  "Soubor nenalezen"    → ujisti se, že ucastnice.tsv je ve stejné složce jako run.command
+  "Soubor nenalezen"    → ujisti se, že .tsv soubor je ve stejné složce
   Passphrase odmítnuta  → zkontroluj, zda zadáváš správnou passphrase od admina
