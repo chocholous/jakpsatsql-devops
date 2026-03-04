@@ -442,3 +442,47 @@ pytest tests/test_binary.py -v
 # Očekávání: PASSED 4/4
 ```
 <!-- /PHASE:5 -->
+
+<!-- PHASE:6 DEPENDS:5 -->
+## Phase 6: macOS .app wrapper (AppleScript)
+
+### Branch
+`phase-6-applescript-app`
+
+### Scope
+Vytvoření nativní macOS aplikace (.app bundle) pomocí AppleScript + osacompile.
+AppleScript wrapper zobrazí GUI dialog pro výběr TSV souboru a zadání passphrase,
+spustí provision-macos a zobrazí výsledek.
+
+### Files to Create/Modify
+- `CzechitasProvisioner.applescript` — AppleScript zdrojový kód
+- `build-app.sh` — build skript pro osacompile
+- `tests/test_applescript.py` — testy pro ověření existence a obsahu souborů
+
+### Acceptance Criteria
+- [ ] `CzechitasProvisioner.applescript` existuje a obsahuje file picker dialog (choose file)
+- [ ] `CzechitasProvisioner.applescript` obsahuje hidden password dialog (with hidden answer)
+- [ ] `CzechitasProvisioner.applescript` nastaví SF_KEY_PASSPHRASE env var a spustí provision-macos
+- [ ] `CzechitasProvisioner.applescript` zachytí stdout/stderr výstup (2>&1)
+- [ ] `CzechitasProvisioner.applescript` zobrazí success/error dialog s výsledkem
+- [ ] `CzechitasProvisioner.applescript` ošetří chybějící provision-macos v adresáři .app
+- [ ] `build-app.sh` je spustitelný a obsahuje `osacompile -o CzechitasProvisioner.app`
+- [ ] Veškeré texty dialogů jsou v češtině
+
+### Tests Required
+- `tests/test_applescript.py::test_applescript_file_exists` — soubor existuje
+- `tests/test_applescript.py::test_applescript_has_file_picker` — obsahuje choose file
+- `tests/test_applescript.py::test_applescript_has_hidden_password` — with hidden answer
+- `tests/test_applescript.py::test_applescript_sets_env_var` — nastaví SF_KEY_PASSPHRASE
+- `tests/test_applescript.py::test_applescript_runs_binary` — spustí provision-macos
+- `tests/test_applescript.py::test_applescript_handles_missing_binary` — ošetří chybějící binárku
+- `tests/test_applescript.py::test_applescript_captures_output` — zachytí výstup (2>&1)
+- `tests/test_applescript.py::test_applescript_shows_result_dialog` — zobrazí výsledkový dialog
+- `tests/test_applescript.py::test_applescript_uses_czech_strings` — texty v češtině
+- `tests/test_applescript.py::test_applescript_uses_yes_flag` — předá --yes příznak
+- `tests/test_applescript.py::test_build_app_script_exists` — build-app.sh existuje
+- `tests/test_applescript.py::test_build_app_script_is_executable` — build-app.sh má +x bit
+- `tests/test_applescript.py::test_build_app_script_uses_osacompile` — obsahuje osacompile příkaz
+<!-- /PHASE:6 -->
+<!-- STATUS:6:DEVELOPING -->
+<!-- BRANCH:6:phase-6-applescript-app -->
