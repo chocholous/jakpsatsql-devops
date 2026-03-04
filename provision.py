@@ -691,12 +691,13 @@ def main() -> None:
     # Parse arguments
     args = sys.argv[1:]
 
+    # Detect binary name for help text
+    prog = os.path.basename(sys.argv[0]) if sys.argv[0] else "provision"
+
     if not args or args[0] in ("-h", "--help"):
         console.print("[bold]Použití:[/bold]")
-        console.print("  python provision.py <tsv_soubor> [--key <cesta>]")
-        console.print(
-            "  python provision.py <tsv_soubor> --kouc --node <NODE> [--key <cesta>]"
-        )
+        console.print(f"  {prog} <tsv_soubor> [--key <cesta>]")
+        console.print(f"  {prog} <tsv_soubor> --kouc --node <NODE> [--key <cesta>]")
         console.print()
         console.print(
             "  [cyan]tsv_soubor[/cyan]   TSV s údaji (studentky nebo koučové/lektoři)"
@@ -713,9 +714,9 @@ def main() -> None:
         console.print("  [cyan]--dry-run[/cyan]     Zobrazí SQL bez provedení")
         console.print()
         console.print("Příklady:")
-        console.print("  python provision.py ucastnice.tsv")
-        console.print("  python provision.py ucastnice.tsv --dry-run")
-        console.print("  python provision.py kouci.tsv --kouc --node CZECHITA")
+        console.print(f"  {prog} ucastnice.tsv")
+        console.print(f"  {prog} ucastnice.tsv --dry-run")
+        console.print(f"  {prog} kouci.tsv --kouc --node CZECHITA")
         sys.exit(1)
 
     # Extract tsv_file from args (first non-flag argument)
