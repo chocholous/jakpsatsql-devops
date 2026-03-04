@@ -9,7 +9,7 @@ CO POTŘEBUJEŠ
 
   2. Rozbal ZIP do libovolné složky
 
-  3. Od admina dostaneš passphrase (heslo ke klíči) — sdílí se zvlášť,
+  3. Od admina dostaneš passphrase (heslo ke klíči provisioner_key.p8) — sdílí se zvlášť,
      např. telefonem nebo přes zabezpečenou zprávu
 
   4. Připrav si TSV soubor se seznamem studentek (viz formát níže)
