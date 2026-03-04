@@ -14,18 +14,14 @@ The easiest way — no terminal needed:
 6. Review the table — green = new, grey = already exists
 7. Type `y` to confirm, or `n` to cancel
 
-> **Mac security warning**: macOS may block the binary with "Apple could not verify" dialog.
-> Fix: open Terminal in the folder and run `xattr -dr com.apple.quarantine provision-macos run.command`,
-> then double-click `run.command` again. Alternatively: System Settings → Privacy & Security → Open Anyway.
+> **Mac security note**: The binary is ad-hoc signed in CI, so macOS recognizes it as
+> a signed app. On first launch you may still see a warning from Gatekeeper because
+> it is not notarized. Fix: right-click `run.command` → **Open**, or go to
+> System Settings → Privacy & Security → **Open Anyway**.
 
 ## Terminal Usage
 
 For more control, or for coach/lektor provisioning, run the binary directly.
-
-On Mac, first remove the quarantine flag (one-time, after download):
-```bash
-xattr -dr com.apple.quarantine provision-macos
-```
 
 ### Provision students
 

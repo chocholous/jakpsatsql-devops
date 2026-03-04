@@ -74,13 +74,13 @@ NÁHLED BEZ PROVEDENÍ ZMĚN
 
 MAC — BEZPEČNOSTNÍ VAROVÁNÍ
 -----------------------------
-  macOS může zablokovat staženou binárku hláškou
-  "Apple could not verify".
+  Binárka je podepsaná (ad-hoc signed), takže macOS ji rozpozná jako
+  podepsanou aplikaci. Při prvním spuštění se ale může objevit varování,
+  protože není notarizovaná Applem.
 
-  Řešení: otevři Terminál ve složce a spusť:
-    xattr -dr com.apple.quarantine provision-macos run.command
-
-  Nebo: Nastavení systému → Soukromí a zabezpečení → Přesto otevřít
+  Řešení:
+    - Klikni pravým tlačítkem na run.command → Otevřít
+    - Nebo: Nastavení systému → Soukromí a zabezpečení → Přesto otevřít
 
 ČASTÉ CHYBY
 -----------

@@ -41,6 +41,10 @@ jobs:
             --hidden-import _cffi_backend \
             provision.py
 
+      - name: Ad-hoc sign binary (macOS)
+        if: runner.os == 'macOS'
+        run: codesign --force --deep -s - dist/${{ matrix.binary_name }}
+
       - name: Build binary (Windows)
         if: runner.os == 'Windows'
         run: |
